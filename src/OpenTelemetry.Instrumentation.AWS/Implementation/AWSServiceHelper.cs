@@ -9,9 +9,10 @@ internal class AWSServiceHelper
 {
     internal static IReadOnlyDictionary<string, string> ServiceParameterMap = new Dictionary<string, string>()
     {
-        { AWSServiceType.DynamoDbService, "TableName" },
-        { AWSServiceType.SQSService, "QueueUrl" },
-        { AWSServiceType.BedrockRuntimeService, "ModelId" },
+        { AWSServiceType.DynamoDbService, new List<string> { "TableName" } },
+        { AWSServiceType.SQSService, new List<string> { "QueueUrl" } },
+        { AWSServiceType.BedrockRuntimeService, new List<string> { "ModelId" } },
+        { AWSServiceType.BedrockAgentRuntimeService, new List<string> { "AgentId", "KnowledgeBaseId" } },
     };
 
     internal static IReadOnlyDictionary<string, string> ParameterAttributeMap = new Dictionary<string, string>()
@@ -19,6 +20,8 @@ internal class AWSServiceHelper
         { "TableName", AWSSemanticConventions.AttributeAWSDynamoTableName },
         { "QueueUrl", AWSSemanticConventions.AttributeAWSSQSQueueUrl },
         { "ModelId", AWSSemanticConventions.AttributeGenAiModelId },
+        { "AgentId", AWSSemanticConventions.AttributeAWSBedrockAgentId },
+        { "KnowledgeBaseId", AWSSemanticConventions.AttributeAWSBedrockKnowledgeBaseId },
     };
 
     internal static string GetAWSServiceName(IRequestContext requestContext)
