@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 using System.Diagnostics;
+using System.Text;
+using System.Text.Json;
 using Amazon.Runtime;
 using Amazon.Runtime.Internal;
 using Amazon.Util;
@@ -158,6 +160,21 @@ internal sealed class AWSTracingPipelineHandler : PipelineHandler
                     var property = request.GetType().GetProperty(parameter);
                     if (property != null)
                     {
+                        // for bedrock runtime, LLM specific attributes are extracted based on the model ID.
+                        if (AWSServiceType.IsBedrockRuntimeService(service) && parameter == "ModelId")
+                        {
+                            var model = property.GetValue(request);
+                            if (model != null)
+                            {
+                                var modelString = model.ToString();
+                                if (modelString != null)
+                                {
+                                    var modelName = modelString.Split('-')[0];
+                                    AWSLlmModelProcessor.ProcessRequestModelAttributes(activity, request, modelName);
+                                }
+                            }
+                        }
+
                         if (AWSServiceHelper.ParameterAttributeMap.TryGetValue(parameter, out var attribute))
                         {
                             activity.SetTag(attribute, property.GetValue(request));
@@ -189,6 +206,51 @@ internal sealed class AWSTracingPipelineHandler : PipelineHandler
         else if (AWSServiceType.IsBedrockRuntimeService(service))
         {
             activity.SetTag(AWSSemanticConventions.AttributeGenAiSystem, "aws_bedrock");
+            var requestBodyProperty = request.GetType().GetProperty("Body");
+            if (requestBodyProperty != null)
+            {
+                var body = requestBodyProperty.GetValue(request) as MemoryStream;
+                if (body != null)
+                {
+                    try
+                    {
+                        var jsonString = Encoding.UTF8.GetString(body.ToArray());
+
+                        // Deserialize the JSON string into a strongly-typed object
+                        var jsonObject = JsonSerializer.Deserialize<Dictionary<string, object>>(jsonString);
+
+                        if (jsonObject == null)
+                        {
+                            return;
+                        }
+
+                        if (jsonObject.TryGetValue("textGenerationConfig", out var textGenerationConfigObj))
+                        {
+                            if (textGenerationConfigObj is JsonElement jsonElement)
+                            {
+                                if (jsonElement.TryGetProperty("topP", out var topP))
+                                {
+                                    activity.SetTag("gen_ai.request.top_p", topP.GetDouble());
+                                }
+
+                                if (jsonElement.TryGetProperty("temperature", out var temperature))
+                                {
+                                    activity.SetTag("gen_ai.request.temperature", temperature.GetDouble());
+                                }
+
+                                if (jsonElement.TryGetProperty("maxTokenCount", out var maxTokens))
+                                {
+                                    activity.SetTag("gen_ai.request.max_tokens", maxTokens.GetInt32());
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine("Exception: " + ex.Message);
+                    }
+                }
+            }
         }
     }
 
@@ -225,6 +287,63 @@ internal sealed class AWSTracingPipelineHandler : PipelineHandler
                 {
                     // Guard against any reflection-related exceptions when running in AoT.
                     // See https://github.com/open-telemetry/opentelemetry-dotnet-contrib/issues/1543#issuecomment-1907667722.
+                }
+            }
+        }
+        else if (AWSServiceType.IsBedrockRuntimeService(service))
+        {
+            AmazonWebServiceResponse response = responseContext.Response;
+            var responseBodyProperty = response.GetType().GetProperty("Body");
+            if (responseBodyProperty != null)
+            {
+                var body = responseBodyProperty.GetValue(response) as MemoryStream;
+                if (body != null)
+                {
+                    try
+                    {
+                        var jsonString = Encoding.UTF8.GetString(body.ToArray());
+
+                        // Deserialize the JSON string into a strongly-typed object
+                        var jsonObject = JsonSerializer.Deserialize<Dictionary<string, object>>(jsonString);
+
+                        if (jsonObject == null)
+                        {
+                            return;
+                        }
+
+                        if (jsonObject.TryGetValue("inputTextTokenCount", out var promptTokens))
+                        {
+                            if (promptTokens is JsonElement jsonElement)
+                            {
+                                activity.SetTag("gen_ai.usage.prompt_tokens", jsonElement.GetInt32());
+                            }
+                        }
+
+                        if (jsonObject.TryGetValue("results", out var results))
+                        {
+                            if (results is JsonElement jsonElement && jsonElement.ValueKind == JsonValueKind.Array)
+                            {
+                                foreach (var element in jsonElement.EnumerateArray())
+                                {
+                                    if (element.TryGetProperty("tokenCount", out var tokenCount))
+                                    {
+                                        activity.SetTag("gen_ai.usage.completion_tokens", tokenCount.GetInt32());
+                                    }
+
+                                    if (element.TryGetProperty("completionReason", out var completionReason))
+                                    {
+                                        activity.SetTag("gen_ai.response.finish_reasons", completionReason.GetString());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine("Exception: " + ex.Message);
+                        Console.WriteLine("StackTrace: " + ex.StackTrace);
+                        Console.WriteLine("Source: " + ex.Source);
+                    }
                 }
             }
         }
