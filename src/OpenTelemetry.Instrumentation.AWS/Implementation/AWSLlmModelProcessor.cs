@@ -21,7 +21,7 @@ internal class AWSLlmModelProcessor
                 try
                 {
                     var jsonString = Encoding.UTF8.GetString(body.ToArray());
-                    var jsonObject = JsonSerializer.Deserialize<Dictionary<string, object>>(jsonString);
+                    var jsonObject = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(jsonString);
 
                     if (jsonObject == null)
                     {
@@ -65,7 +65,7 @@ internal class AWSLlmModelProcessor
                 try
                 {
                     var jsonString = Encoding.UTF8.GetString(body.ToArray());
-                    var jsonObject = JsonSerializer.Deserialize<Dictionary<string, object>>(jsonString);
+                    var jsonObject = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(jsonString);
                     if (jsonObject == null)
                     {
                         return;
@@ -93,28 +93,25 @@ internal class AWSLlmModelProcessor
         }
     }
 
-    private static void ProcessTitanModelRequestAttributes(Activity activity, Dictionary<string, object> jsonBody)
+    private static void ProcessTitanModelRequestAttributes(Activity activity, Dictionary<string, JsonElement> jsonBody)
     {
         try
         {
-            if (jsonBody.TryGetValue("textGenerationConfig", out var textGenerationConfigObj))
+            if (jsonBody.TryGetValue("textGenerationConfig", out var textGenerationConfig))
             {
-                if (textGenerationConfigObj is JsonElement jsonElement)
+                if (textGenerationConfig.TryGetProperty("topP", out var topP))
                 {
-                    if (jsonElement.TryGetProperty("topP", out var topP))
-                    {
-                        activity.SetTag(AWSSemanticConventions.AttributeGenAiTopP, topP.GetDouble());
-                    }
+                    activity.SetTag(AWSSemanticConventions.AttributeGenAiTopP, topP.GetDouble());
+                }
 
-                    if (jsonElement.TryGetProperty("temperature", out var temperature))
-                    {
-                        activity.SetTag(AWSSemanticConventions.AttributeGenAiTemperature, temperature.GetDouble());
-                    }
+                if (textGenerationConfig.TryGetProperty("temperature", out var temperature))
+                {
+                    activity.SetTag(AWSSemanticConventions.AttributeGenAiTemperature, temperature.GetDouble());
+                }
 
-                    if (jsonElement.TryGetProperty("maxTokenCount", out var maxTokens))
-                    {
-                        activity.SetTag(AWSSemanticConventions.AttributeGenAiMaxTokens, maxTokens.GetInt32());
-                    }
+                if (textGenerationConfig.TryGetProperty("maxTokenCount", out var maxTokens))
+                {
+                    activity.SetTag(AWSSemanticConventions.AttributeGenAiMaxTokens, maxTokens.GetInt32());
                 }
             }
         }
@@ -124,34 +121,26 @@ internal class AWSLlmModelProcessor
         }
     }
 
-    private static void ProcessTitanModelResponseAttributes(Activity activity, Dictionary<string, object> jsonBody)
+    private static void ProcessTitanModelResponseAttributes(Activity activity, Dictionary<string, JsonElement> jsonBody)
     {
         try
         {
             if (jsonBody.TryGetValue("inputTextTokenCount", out var promptTokens))
             {
-                if (promptTokens is JsonElement jsonElement)
-                {
-                    activity.SetTag(AWSSemanticConventions.AttributeGenAiPromptTokens, jsonElement.GetInt32());
-                }
+                activity.SetTag(AWSSemanticConventions.AttributeGenAiPromptTokens, promptTokens.GetInt32());
             }
 
-            if (jsonBody.TryGetValue("results", out var results))
+            if (jsonBody.TryGetValue("results", out var resultsArray))
             {
-                if (results is JsonElement jsonElement && jsonElement.ValueKind == JsonValueKind.Array)
+                var results = resultsArray[0];
+                if (results.TryGetProperty("tokenCount", out var completionTokens))
                 {
-                    foreach (var element in jsonElement.EnumerateArray())
-                    {
-                        if (element.TryGetProperty("tokenCount", out var completionTokens))
-                        {
-                            activity.SetTag(AWSSemanticConventions.AttributeGenAiCompletionTokens, completionTokens.GetInt32());
-                        }
+                    activity.SetTag(AWSSemanticConventions.AttributeGenAiCompletionTokens, completionTokens.GetInt32());
+                }
 
-                        if (element.TryGetProperty("completionReason", out var finishReasons))
-                        {
-                            activity.SetTag(AWSSemanticConventions.AttributeGenAiFinishReasons, finishReasons.GetString());
-                        }
-                    }
+                if (results.TryGetProperty("completionReason", out var finishReasons))
+                {
+                    activity.SetTag(AWSSemanticConventions.AttributeGenAiFinishReasons, finishReasons.GetString());
                 }
             }
         }
@@ -161,32 +150,23 @@ internal class AWSLlmModelProcessor
         }
     }
 
-    private static void ProcessClaudeModelRequestAttributes(Activity activity, Dictionary<string, object> jsonBody)
+    private static void ProcessClaudeModelRequestAttributes(Activity activity, Dictionary<string, JsonElement> jsonBody)
     {
         try
         {
             if (jsonBody.TryGetValue("top_p", out var topP))
             {
-                if (topP is JsonElement jsonElement)
-                {
-                    activity.SetTag(AWSSemanticConventions.AttributeGenAiTopP, jsonElement.GetDouble());
-                }
+                activity.SetTag(AWSSemanticConventions.AttributeGenAiTopP, topP.GetDouble());
             }
 
             if (jsonBody.TryGetValue("temperature", out var temperature))
             {
-                if (temperature is JsonElement jsonElement)
-                {
-                    activity.SetTag(AWSSemanticConventions.AttributeGenAiTemperature, jsonElement.GetDouble());
-                }
+                activity.SetTag(AWSSemanticConventions.AttributeGenAiTemperature, temperature.GetDouble());
             }
 
             if (jsonBody.TryGetValue("max_tokens_to_sample", out var maxTokens))
             {
-                if (maxTokens is JsonElement jsonElement)
-                {
-                    activity.SetTag(AWSSemanticConventions.AttributeGenAiMaxTokens, jsonElement.GetInt32());
-                }
+                activity.SetTag(AWSSemanticConventions.AttributeGenAiMaxTokens, maxTokens.GetInt32());
             }
         }
         catch (Exception ex)
@@ -195,16 +175,13 @@ internal class AWSLlmModelProcessor
         }
     }
 
-    private static void ProcessClaudeModelResponseAttributes(Activity activity, Dictionary<string, object> jsonBody)
+    private static void ProcessClaudeModelResponseAttributes(Activity activity, Dictionary<string, JsonElement> jsonBody)
     {
         try
         {
             if (jsonBody.TryGetValue("stop_reason", out var finishReasons))
             {
-                if (finishReasons is JsonElement jsonElement)
-                {
-                    activity.SetTag(AWSSemanticConventions.AttributeGenAiFinishReasons, jsonElement.GetString());
-                }
+                activity.SetTag(AWSSemanticConventions.AttributeGenAiFinishReasons, finishReasons.GetString());
             }
 
             // prompt_tokens and completion_tokens not provided in Claude response body.
@@ -215,32 +192,23 @@ internal class AWSLlmModelProcessor
         }
     }
 
-    private static void ProcessLlamaModelRequestAttributes(Activity activity, Dictionary<string, object> jsonBody)
+    private static void ProcessLlamaModelRequestAttributes(Activity activity, Dictionary<string, JsonElement> jsonBody)
     {
         try
         {
             if (jsonBody.TryGetValue("top_p", out var topP))
             {
-                if (topP is JsonElement jsonElement)
-                {
-                    activity.SetTag(AWSSemanticConventions.AttributeGenAiTopP, jsonElement.GetDouble());
-                }
+                activity.SetTag(AWSSemanticConventions.AttributeGenAiTopP, topP.GetDouble());
             }
 
             if (jsonBody.TryGetValue("temperature", out var temperature))
             {
-                if (temperature is JsonElement jsonElement)
-                {
-                    activity.SetTag(AWSSemanticConventions.AttributeGenAiTemperature, jsonElement.GetDouble());
-                }
+                activity.SetTag(AWSSemanticConventions.AttributeGenAiTemperature, temperature.GetDouble());
             }
 
             if (jsonBody.TryGetValue("max_gen_len", out var maxTokens))
             {
-                if (maxTokens is JsonElement jsonElement)
-                {
-                    activity.SetTag(AWSSemanticConventions.AttributeGenAiMaxTokens, jsonElement.GetInt32());
-                }
+                activity.SetTag(AWSSemanticConventions.AttributeGenAiMaxTokens, maxTokens.GetInt32());
             }
         }
         catch (Exception ex)
@@ -249,34 +217,23 @@ internal class AWSLlmModelProcessor
         }
     }
 
-    private static void ProcessLlamaModelResponseAttributes(Activity activity, Dictionary<string, object> jsonBody)
+    private static void ProcessLlamaModelResponseAttributes(Activity activity, Dictionary<string, JsonElement> jsonBody)
     {
-        Console.WriteLine(jsonBody);
         try
         {
             if (jsonBody.TryGetValue("prompt_token_count", out var promptTokens))
             {
-                Console.WriteLine(promptTokens);
-                if (promptTokens is JsonElement jsonElement)
-                {
-                    activity.SetTag(AWSSemanticConventions.AttributeGenAiPromptTokens, jsonElement.GetInt32());
-                }
+                activity.SetTag(AWSSemanticConventions.AttributeGenAiPromptTokens, promptTokens.GetInt32());
             }
 
-            if (jsonBody.TryGetValue("prompt_token_count", out var completionTokens))
+            if (jsonBody.TryGetValue("generation_token_count", out var completionTokens))
             {
-                if (completionTokens is JsonElement jsonElement)
-                {
-                    activity.SetTag(AWSSemanticConventions.AttributeGenAiCompletionTokens, jsonElement.GetInt32());
-                }
+                activity.SetTag(AWSSemanticConventions.AttributeGenAiCompletionTokens, completionTokens.GetInt32());
             }
 
             if (jsonBody.TryGetValue("stop_reason", out var finishReasons))
             {
-                if (finishReasons is JsonElement jsonElement)
-                {
-                    activity.SetTag(AWSSemanticConventions.AttributeGenAiFinishReasons, jsonElement.GetString());
-                }
+                activity.SetTag(AWSSemanticConventions.AttributeGenAiFinishReasons, finishReasons.GetString());
             }
         }
         catch (Exception ex)
