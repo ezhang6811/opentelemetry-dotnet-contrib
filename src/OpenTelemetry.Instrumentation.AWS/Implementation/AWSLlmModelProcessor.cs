@@ -103,17 +103,17 @@ internal class AWSLlmModelProcessor
                 {
                     if (jsonElement.TryGetProperty("topP", out var topP))
                     {
-                        activity.SetTag("gen_ai.request.top_p", topP.GetDouble());
+                        activity.SetTag(AWSSemanticConventions.AttributeGenAiTopP, topP.GetDouble());
                     }
 
                     if (jsonElement.TryGetProperty("temperature", out var temperature))
                     {
-                        activity.SetTag("gen_ai.request.temperature", temperature.GetDouble());
+                        activity.SetTag(AWSSemanticConventions.AttributeGenAiTemperature, temperature.GetDouble());
                     }
 
                     if (jsonElement.TryGetProperty("maxTokenCount", out var maxTokens))
                     {
-                        activity.SetTag("gen_ai.request.max_tokens", maxTokens.GetInt32());
+                        activity.SetTag(AWSSemanticConventions.AttributeGenAiMaxTokens, maxTokens.GetInt32());
                     }
                 }
             }
@@ -132,7 +132,7 @@ internal class AWSLlmModelProcessor
             {
                 if (promptTokens is JsonElement jsonElement)
                 {
-                    activity.SetTag("gen_ai.usage.prompt_tokens", jsonElement.GetInt32());
+                    activity.SetTag(AWSSemanticConventions.AttributeGenAiPromptTokens, jsonElement.GetInt32());
                 }
             }
 
@@ -144,12 +144,12 @@ internal class AWSLlmModelProcessor
                     {
                         if (element.TryGetProperty("tokenCount", out var completionTokens))
                         {
-                            activity.SetTag("gen_ai.usage.completion_tokens", completionTokens.GetInt32());
+                            activity.SetTag(AWSSemanticConventions.AttributeGenAiCompletionTokens, completionTokens.GetInt32());
                         }
 
                         if (element.TryGetProperty("completionReason", out var finishReasons))
                         {
-                            activity.SetTag("gen_ai.response.finish_reasons", finishReasons.GetString());
+                            activity.SetTag(AWSSemanticConventions.AttributeGenAiFinishReasons, finishReasons.GetString());
                         }
                     }
                 }
@@ -169,7 +169,7 @@ internal class AWSLlmModelProcessor
             {
                 if (topP is JsonElement jsonElement)
                 {
-                    activity.SetTag("gen_ai.request.top_p", jsonElement.GetDouble());
+                    activity.SetTag(AWSSemanticConventions.AttributeGenAiTopP, jsonElement.GetDouble());
                 }
             }
 
@@ -177,7 +177,7 @@ internal class AWSLlmModelProcessor
             {
                 if (temperature is JsonElement jsonElement)
                 {
-                    activity.SetTag("gen_ai.request.temperature", jsonElement.GetDouble());
+                    activity.SetTag(AWSSemanticConventions.AttributeGenAiTemperature, jsonElement.GetDouble());
                 }
             }
 
@@ -185,7 +185,7 @@ internal class AWSLlmModelProcessor
             {
                 if (maxTokens is JsonElement jsonElement)
                 {
-                    activity.SetTag("gen_ai.request.max_tokens", jsonElement.GetInt32());
+                    activity.SetTag(AWSSemanticConventions.AttributeGenAiMaxTokens, jsonElement.GetInt32());
                 }
             }
         }
@@ -203,7 +203,7 @@ internal class AWSLlmModelProcessor
             {
                 if (finishReasons is JsonElement jsonElement)
                 {
-                    activity.SetTag("gen_ai.response.finish_reasons", jsonElement.GetString());
+                    activity.SetTag(AWSSemanticConventions.AttributeGenAiFinishReasons, jsonElement.GetString());
                 }
             }
 
@@ -223,7 +223,7 @@ internal class AWSLlmModelProcessor
             {
                 if (topP is JsonElement jsonElement)
                 {
-                    activity.SetTag("gen_ai.request.top_p", jsonElement.GetDouble());
+                    activity.SetTag(AWSSemanticConventions.AttributeGenAiTopP, jsonElement.GetDouble());
                 }
             }
 
@@ -231,7 +231,7 @@ internal class AWSLlmModelProcessor
             {
                 if (temperature is JsonElement jsonElement)
                 {
-                    activity.SetTag("gen_ai.request.temperature", jsonElement.GetDouble());
+                    activity.SetTag(AWSSemanticConventions.AttributeGenAiTemperature, jsonElement.GetDouble());
                 }
             }
 
@@ -239,7 +239,7 @@ internal class AWSLlmModelProcessor
             {
                 if (maxTokens is JsonElement jsonElement)
                 {
-                    activity.SetTag("gen_ai.request.max_tokens", jsonElement.GetInt32());
+                    activity.SetTag(AWSSemanticConventions.AttributeGenAiMaxTokens, jsonElement.GetInt32());
                 }
             }
         }
@@ -259,7 +259,7 @@ internal class AWSLlmModelProcessor
                 Console.WriteLine(promptTokens);
                 if (promptTokens is JsonElement jsonElement)
                 {
-                    activity.SetTag("gen_ai.usage.prompt_tokens", jsonElement.GetInt32());
+                    activity.SetTag(AWSSemanticConventions.AttributeGenAiPromptTokens, jsonElement.GetInt32());
                 }
             }
 
@@ -267,7 +267,7 @@ internal class AWSLlmModelProcessor
             {
                 if (completionTokens is JsonElement jsonElement)
                 {
-                    activity.SetTag("gen_ai.usage.completion_tokens", jsonElement.GetInt32());
+                    activity.SetTag(AWSSemanticConventions.AttributeGenAiCompletionTokens, jsonElement.GetInt32());
                 }
             }
 
@@ -275,7 +275,7 @@ internal class AWSLlmModelProcessor
             {
                 if (finishReasons is JsonElement jsonElement)
                 {
-                    activity.SetTag("gen_ai.response.finish_reasons", jsonElement.GetString());
+                    activity.SetTag(AWSSemanticConventions.AttributeGenAiFinishReasons, jsonElement.GetString());
                 }
             }
         }
