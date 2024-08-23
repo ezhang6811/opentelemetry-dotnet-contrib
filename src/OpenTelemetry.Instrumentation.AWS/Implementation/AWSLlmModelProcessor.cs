@@ -37,6 +37,9 @@ internal class AWSLlmModelProcessor
                         case "anthropic.claude":
                             ProcessClaudeModelRequestAttributes(activity, jsonObject);
                             break;
+                        case "meta.llama3":
+                            ProcessLlamaModelRequestAttributes(activity, jsonObject);
+                            break;
                     }
                 }
                 catch (Exception ex)
@@ -76,6 +79,9 @@ internal class AWSLlmModelProcessor
                             break;
                         case "anthropic.claude":
                             ProcessClaudeModelResponseAttributes(activity, jsonObject);
+                            break;
+                        case "meta.llama3":
+                            ProcessLlamaModelResponseAttributes(activity, jsonObject);
                             break;
                     }
                 }
@@ -136,14 +142,14 @@ internal class AWSLlmModelProcessor
                 {
                     foreach (var element in jsonElement.EnumerateArray())
                     {
-                        if (element.TryGetProperty("tokenCount", out var tokenCount))
+                        if (element.TryGetProperty("tokenCount", out var completionTokens))
                         {
-                            activity.SetTag("gen_ai.usage.completion_tokens", tokenCount.GetInt32());
+                            activity.SetTag("gen_ai.usage.completion_tokens", completionTokens.GetInt32());
                         }
 
-                        if (element.TryGetProperty("completionReason", out var completionReason))
+                        if (element.TryGetProperty("completionReason", out var finishReasons))
                         {
-                            activity.SetTag("gen_ai.response.finish_reasons", completionReason.GetString());
+                            activity.SetTag("gen_ai.response.finish_reasons", finishReasons.GetString());
                         }
                     }
                 }
@@ -193,6 +199,78 @@ internal class AWSLlmModelProcessor
     {
         try
         {
+            if (jsonBody.TryGetValue("stop_reason", out var finishReasons))
+            {
+                if (finishReasons is JsonElement jsonElement)
+                {
+                    activity.SetTag("gen_ai.response.finish_reasons", jsonElement.GetString());
+                }
+            }
+
+            // prompt_tokens and completion_tokens not provided in Claude response body.
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Exception: " + ex.Message);
+        }
+    }
+
+    private static void ProcessLlamaModelRequestAttributes(Activity activity, Dictionary<string, object> jsonBody)
+    {
+        try
+        {
+            if (jsonBody.TryGetValue("top_p", out var topP))
+            {
+                if (topP is JsonElement jsonElement)
+                {
+                    activity.SetTag("gen_ai.request.top_p", jsonElement.GetDouble());
+                }
+            }
+
+            if (jsonBody.TryGetValue("temperature", out var temperature))
+            {
+                if (temperature is JsonElement jsonElement)
+                {
+                    activity.SetTag("gen_ai.request.temperature", jsonElement.GetDouble());
+                }
+            }
+
+            if (jsonBody.TryGetValue("max_gen_len", out var maxTokens))
+            {
+                if (maxTokens is JsonElement jsonElement)
+                {
+                    activity.SetTag("gen_ai.request.max_tokens", jsonElement.GetInt32());
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Exception: " + ex.Message);
+        }
+    }
+
+    private static void ProcessLlamaModelResponseAttributes(Activity activity, Dictionary<string, object> jsonBody)
+    {
+        Console.WriteLine(jsonBody);
+        try
+        {
+            if (jsonBody.TryGetValue("prompt_token_count", out var promptTokens))
+            {
+                Console.WriteLine(promptTokens);
+                if (promptTokens is JsonElement jsonElement)
+                {
+                    activity.SetTag("gen_ai.usage.prompt_tokens", jsonElement.GetInt32());
+                }
+            }
+
+            if (jsonBody.TryGetValue("prompt_token_count", out var completionTokens))
+            {
+                if (completionTokens is JsonElement jsonElement)
+                {
+                    activity.SetTag("gen_ai.usage.completion_tokens", jsonElement.GetInt32());
+                }
+            }
+
             if (jsonBody.TryGetValue("stop_reason", out var finishReasons))
             {
                 if (finishReasons is JsonElement jsonElement)
