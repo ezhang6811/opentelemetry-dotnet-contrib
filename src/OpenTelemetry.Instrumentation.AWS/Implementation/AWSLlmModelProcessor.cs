@@ -22,6 +22,7 @@ internal class AWSLlmModelProcessor
                 {
                     var jsonString = Encoding.UTF8.GetString(body.ToArray());
                     var jsonObject = JsonSerializer.Deserialize<Dictionary<string, object>>(jsonString);
+
                     if (jsonObject == null)
                     {
                         return;
@@ -32,6 +33,9 @@ internal class AWSLlmModelProcessor
                     {
                         case "amazon.titan":
                             ProcessTitanModelRequestAttributes(activity, jsonObject);
+                            break;
+                        case "anthropic.claude":
+                            ProcessClaudeModelRequestAttributes(activity, jsonObject);
                             break;
                     }
                 }
@@ -45,6 +49,10 @@ internal class AWSLlmModelProcessor
 
     internal static void ProcessResponseModelAttributes(Activity activity, AmazonWebServiceResponse response, string model)
     {
+        // currently, the .NET SDK does not expose "X-Amzn-Bedrock-*" HTTP headers in the response metadata,
+        // as per https://github.com/aws/aws-sdk-net/issues/3171. Unless the Bedrock team decides to change the
+        // public interface of the APIs, we can only extract Bedrock attributes that exist in the response body.
+
         var responseBodyProperty = response.GetType().GetProperty("Body");
         if (responseBodyProperty != null)
         {
@@ -65,6 +73,9 @@ internal class AWSLlmModelProcessor
                     {
                         case "amazon.titan":
                             ProcessTitanModelResponseAttributes(activity, jsonObject);
+                            break;
+                        case "anthropic.claude":
+                            ProcessClaudeModelResponseAttributes(activity, jsonObject);
                             break;
                     }
                 }
@@ -135,6 +146,58 @@ internal class AWSLlmModelProcessor
                             activity.SetTag("gen_ai.response.finish_reasons", completionReason.GetString());
                         }
                     }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Exception: " + ex.Message);
+        }
+    }
+
+    private static void ProcessClaudeModelRequestAttributes(Activity activity, Dictionary<string, object> jsonBody)
+    {
+        try
+        {
+            if (jsonBody.TryGetValue("top_p", out var topP))
+            {
+                if (topP is JsonElement jsonElement)
+                {
+                    activity.SetTag("gen_ai.request.top_p", jsonElement.GetDouble());
+                }
+            }
+
+            if (jsonBody.TryGetValue("temperature", out var temperature))
+            {
+                if (temperature is JsonElement jsonElement)
+                {
+                    activity.SetTag("gen_ai.request.temperature", jsonElement.GetDouble());
+                }
+            }
+
+            if (jsonBody.TryGetValue("max_tokens_to_sample", out var maxTokens))
+            {
+                if (maxTokens is JsonElement jsonElement)
+                {
+                    activity.SetTag("gen_ai.request.max_tokens", jsonElement.GetInt32());
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Exception: " + ex.Message);
+        }
+    }
+
+    private static void ProcessClaudeModelResponseAttributes(Activity activity, Dictionary<string, object> jsonBody)
+    {
+        try
+        {
+            if (jsonBody.TryGetValue("stop_reason", out var finishReasons))
+            {
+                if (finishReasons is JsonElement jsonElement)
+                {
+                    activity.SetTag("gen_ai.response.finish_reasons", jsonElement.GetString());
                 }
             }
         }
